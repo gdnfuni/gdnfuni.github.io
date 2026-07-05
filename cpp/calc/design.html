@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++多功能计算器后端设计文档</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+            line-height: 1.8;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            color: #333;
+            background: #fff;
+        }
+        h1 {
+            font-size: 2em;
+            border-bottom: 3px solid #333;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+            margin-top: 40px;
+        }
+        h3 {
+            font-size: 1.25em;
+            margin-top: 30px;
+        }
+        h4 {
+            font-size: 1.1em;
+            margin-top: 25px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+            font-size: 0.95em;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px 12px;
+            text-align: left;
+        }
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+        pre {
+            background: #f8f8f8;
+            border: 1px solid #e8e8e8;
+            border-radius: 6px;
+            padding: 16px;
+            overflow-x: auto;
+            line-height: 1.5;
+            font-family: "SF Mono", Monaco, "Cascadia Code", Consolas, monospace;
+            font-size: 0.9em;
+        }
+        pre code {
+            background: none;
+            padding: 0;
+            color: #333;
+            font-size: 0.9em;
+        }
+        blockquote {
+            border-left: 4px solid #ddd;
+            margin: 20px 0;
+            padding: 10px 20px;
+            color: #666;
+            background: #fafafa;
+        }
+        ul, ol {
+            padding-left: 25px;
+        }
+        li {
+            margin: 6px 0;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #eee;
+            margin: 40px 0;
+        }
+        a {
+            color: #0366d6;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        p {
+            margin: 12px 0;
+        }
+        @media print {
+            body {
+                padding: 20px;
+            }
+            pre {
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+        }
+    </style>
+</head>
+<body>
+<p> C++多功能计算器后端设计文档</p>
+<p> —— 暨本人程序设计思路的记录与分享</p>
+<blockquote>
+本文档旨在从一个程序设计师的角度，阐述该项目整个后端系统的设计思路，构建一个高性能、模块化、跨平台的Web服务后端。
+</blockquote>
+
+<hr>
+
+<p> 目录</p>
+<pre style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:6px;padding:16px;overflow-x:auto;line-height:1.5;font-family:monospace;font-size:0.9em;">1. [总体设计思路](#1-总体设计思路)
+2. [架构设计](#2-架构设计)
+3. [跨平台抽象层设计](#3-跨平台抽象层设计)
+4. [网络通信层设计](#4-网络通信层设计)
+5. [数据序列化层设计](#5-数据序列化层设计)
+6. [业务逻辑层设计](#6-业务逻辑层设计)
+7. [API接口层设计](#7-api接口层设计)
+8. [模块间交互设计](#8-模块间交互设计)
+9. [内存管理策略](#9-内存管理策略)
+10. [错误处理策略](#10-错误处理策略)
+11. [编译系统设计](#11-编译系统设计)
+12. [设计决策记录](#12-设计决策记录)
+
+---
+</pre>
+<p> 1. 总体设计思路</p>
+<p> 1.1 设计哲学</p>
+<p>人的思维是设计的起点。一个程序设计师在构思系统时，不会从代码开始，而是从问题域开始。面对"做一个多功能计算器的Web后端"这个需求，我的思维路径如下：</p>
+<p>需求：跨平台Web计算器后端</p>
+<pre><code>|
++-&gt; 核心问题1：如何让前端访问后端？ -&gt; 需要HTTP服务器
++-&gt; 核心问题2：前端和后端用什么格式通信？ -&gt; JSON
++-&gt; 核心问题3：后端要在哪些系统上跑？ -&gt; Windows + Linux
++-&gt; 核心问题4：需要哪些计算功能？ -&gt; 表达式/进制/排列组合/几何/高级
++-&gt; 核心问题5：前端文件怎么给浏览器？ -&gt; 静态文件服务
++-&gt; 核心问题6：代码怎么组织？ -&gt; 模块化，每个功能一个模块
+</code></pre>
+<p>基于这个思维路径，整个系统被划分为6个层次：</p>
+<table>
+<thead>
+<tr><th>层次</th><th>职责</th><th>对应源码文件</th></tr>
+</thead>
+<tbody>
+<tr><td>L1 跨平台抽象层</td><td>抹平OS差异</td><td>platform.hpp/cpp</td></tr>
+<tr><td>L2 数据序列化层</td><td>JSON解析/生成</td><td>json.hpp/cpp</td></tr>
+<tr><td>L3 网络通信层</td><td>HTTP服务器</td><td>http_server.hpp/cpp</td></tr>
+<tr><td>L4 业务逻辑层</td><td>所有计算引擎</td><td>calc_engine, base_converter, permutation, geometry, advanced</td></tr>
+<tr><td>L5 API接口层</td><td>路由分发</td><td>api_handlers.hpp/cpp</td></tr>
+<tr><td>L6 入口层</td><td>程序启动</td><td>main.cpp</td></tr>
+</tbody>
+</table>
+<p> 1.2 为什么不用第三方库</p>
+<p>这是第一个关键设计决策。成熟的HTTP服务器有Boost.Beast/Asio，JSON有nlohmann/json，但本系统选择从零实现。原因如下：</p>
+<ol>
+<li>可控性：不依赖外部意味着编译时只需g++即可，无版本冲突</li>
+<li>学习价值：每个组件都展示了底层原理（HTTP协议、JSON语法、Socket编程）</li>
+<li>体积控制：不需要链接任何.so/.dll，最终二进制仅~350KB</li>
+<li>跨平台简化：只需处理g++标准编译，无需管理第三方库的跨平台编译</li>
+<li>完整性：无依赖意味着"拿到源码就能编译运行"</li>
+</ol>
+<p> 1.3 设计原则</p>
+<table>
+<thead>
+<tr><th>原则</th><th>含义</th><th>实例</th></tr>
+</thead>
+<tbody>
+<tr><td>单一职责（SRP）</td><td>每个文件只做一件事</td><td>platform只处理OS差异，json只处理JSON，不交叉</td></tr>
+<tr><td>最小接口</td><td>只暴露必要接口</td><td>CalcEngine::evaluate()是唯一的公共接口</td></tr>
+<tr><td>错误即异常</td><td>所有错误通过异常传播</td><td>DivisionByZeroException, OverflowException</td></tr>
+<tr><td>RAII（资源获取即初始化）</td><td>资源与对象生命周期绑定</td><td>NetworkInit自动初始化和清理Winsock</td></tr>
+<tr><td>零开销抽象</td><td>抽象不带来运行时开销</td><td>socket_t类型别名编译后无任何额外开销</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<p> 2. 架构设计</p>
+<p> 2.1 系统架构图</p>
+<pre><code>                 客户端浏览器 / curl / 任意HTTP客户端
+                        |
+                 +------v------+
+                 | HTTP Request |
+                 +------+------+
+                        |
+      +-----------------+-----------------+
+      |                                   |
+ 动态路由 (API)                     静态路由 (前端文件)
+      |                                   |
++-----v------+                    +------v------+
+| /api/health |                    | /index.html  |
+| /api/calculate                   | /style.css   |
+| /api/convert/*                   | /app.js      |
+| /api/permutation |               +------+------+
+| /api/geometry  |                        |
+| /api/matrix     |                        |
+| /api/numtheory  |                        |
+| /api/statistics |                        |
+| /api/equation/* +------+               |
++-----+------+           |               |
+      |                  |               |
++-----v------------------v-----------+   |
+|          api_handlers              |   |
+|  (请求解析 -&gt; 参数验证 -&gt; 计算     |   |
+|   -&gt; 结果封装 -&gt; 响应序列化)        |   |
++-----+------------------+-----------+   |
+      |                  |               |
++-----v------+    +------v------+  +----v----+
+|calc_engine |    |base_converter|  |http_server|
+|permutation |    |geometry      |  |(静态服务) |
+|advanced    |    +------+------+  +----+----+
++------+-----+           |              |
+       |                  |              |
++------v------------------v--------------v--+
+|              json (序列化)                |
++------+-----------------------------------+
+       |
++------v-----------------------------------+
+|              platform (跨平台)            |
++------------------------------------------+
+</code></pre>
+<p> 2.2 数据流</p>
+<p>一次完整的API调用数据流：</p>
+<p>Client Request</p>
+<pre><code>-&gt; [platform] socket读取原始HTTP字节
+-&gt; [http_server] 解析为HttpRequest对象 (请求行/头部/体)
+-&gt; [http_server] Router::handle() 查找匹配路由
+-&gt; [api_handlers] 解析JSON请求体 -&gt; 参数验证
+-&gt; [calc_engine/base_converter/...] 执行计算
+-&gt; [api_handlers] 封装结果为统一JSON格式
+-&gt; [json] 序列化为JSON字符串
+-&gt; [http_server] 构建HttpResponse (状态码/头部/体)
+-&gt; [http_server] 添加CORS头部
+-&gt; [platform] socket发送响应字节
+-&gt; Client
+</code></pre>
+<p> 2.3 为什么是这个架构</p>
+<p>这个架构遵循了分层通信的直觉：</p>
+<ul>
+<li>人想到"Web服务"，首先想到"浏览器发请求"</li>
+<li>请求是HTTP格式的，所以需要一个HTTP解析层</li>
+<li>HTTP体里是JSON，所以需要一个JSON层</li>
+<li>JSON里的数据要交给计算引擎，所以需要一个业务层</li>
+<li>计算结果要返回，所以需要一个API封装层</li>
+<li>所有这些要跑在不同系统上，所以需要一个跨平台层</li>
+</ul>
+<p>每一层只与相邻层交互，不跳层。这是人脑处理复杂系统的自然方式——分层抽象。</p>
+
+<hr>
+
+<p> 3. 跨平台抽象层设计</p>
+<p> 3.1 问题分析</p>
+<p>Web服务需要Socket编程，但Windows和Linux的Socket API完全不同：</p>
+<table>
+<thead>
+<tr><th>功能</th><th>Windows (Winsock)</th><th>Linux (POSIX)</th></tr>
+</thead>
+<tbody>
+<tr><td>头文件</td><td><winsock2.h></td><td><sys/socket.h></td></tr>
+<tr><td>socket类型</td><td>SOCKET (64位无符号)</td><td>int (32位有符号)</td></tr>
+<tr><td>无效socket</td><td>INVALID_SOCKET</td><td>-1</td></tr>
+<tr><td>关闭</td><td>closesocket()</td><td>close()</td></tr>
+<tr><td>错误码</td><td>WSAGetLastError()</td><td>errno</td></tr>
+<tr><td>初始化</td><td>WSAStartup()</td><td>无需</td></tr>
+<tr><td>非阻塞</td><td>ioctlsocket()</td><td>fcntl(F_SETFL, O_NONBLOCK)</td></tr>
+</tbody>
+</table>
+<p> 3.2 设计思路</p>
+<p>人的思维是："这些本质上是同一件事，只是API名字不同。那我就定义一个统一的类型和一组统一的函数。"</p>
+<p>三步抽象：</p>
+<ol>
+<li>类型统一：using socket_t = SOCKET (Win) / int (Linux)</li>
+<li>常量统一：INVALID_SOCKET_VAL, SOCKET_ERROR_VAL</li>
+<li>操作统一：socket_ops::close_socket(), socket_ops::set_nonblocking(), socket_ops::get_last_error()</li>
+</ol>
+<p>RAII包装：NetworkInit类在构造时调用WSAStartup()，在析构时调用WSACleanup()。这样永远不会忘记清理。</p>
+<p> 3.3 关键代码模式</p>
+<p>// 条件编译自动选择正确的头文件和实现</p>
+<p>#ifdef _WIN32</p>
+<p>    // Windows实现</p>
+<p>#else</p>
+<p>    // Linux实现</p>
+<p>#endif</p>
+
+<p>这是跨平台C++的标准模式。关键是将条件编译集中在platform一个文件中，其他文件不需要关心平台差异。</p>
+
+<hr>
+
+<p> 4. 网络通信层设计</p>
+<p> 4.1 HTTP服务器设计</p>
+<p> 4.1.1 为什么用select而非epoll/kqueue/IOCP</p>
+<p>本系统选择select()模型，理由如下：</p>
+<ol>
+<li>简单：select是POSIX标准，所有平台都支持，代码量少</li>
+<li>足够：这是一个计算器服务，不是高并发Web服务，QPS预期<1000</li>
+<li>可移植：epoll(Linux)、kqueue(macOS)、IOCP(Windows)各自专属，select是通用的</li>
+<li>教学价值：select模型最能清晰展示IO多路复用的原理</li>
+</ol>
+<p> 4.1.2 事件循环</p>
+<p>while (running) {</p>
+<pre><code>select(read_fds, timeout=100ms)  // 等待可读的socket
+if (server_socket readable) {
+    accept() new connection       // 有新连接到来
+    handle_client()               // 同步处理请求
+    close() connection            // 关闭连接
+}</code></pre>
+<p>}</p>
+
+<p>这是Reactor模式的最简实现。select监听服务器socket的可读事件，当有新连接时accept并处理。</p>
+<p> 4.1.3 同步处理 vs 异步处理</p>
+<p>本系统采用同步处理（每个请求在一个函数调用中完成），而非多线程/线程池。理由：</p>
+<ol>
+<li>计算请求都是CPU密集型短任务（毫秒级完成）</li>
+<li>无阻塞IO操作（不需要等数据库/文件系统）</li>
+<li>单线程避免了锁竞争和线程切换开销</li>
+<li>代码更简单，无并发bug风险</li>
+</ol>
+<p> 4.2 HTTP协议实现</p>
+<p> 4.2.1 请求解析</p>
+<p>HTTP请求格式：</p>
+<pre style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:6px;padding:16px;overflow-x:auto;line-height:1.5;font-family:monospace;font-size:0.9em;">GET /api/calculate HTTP/1.1\r\n      &lt;- 请求行 (方法 + 路径 + 版本)
+Host: localhost\r\n                   &lt;- 头部
+Content-Type: application/json\r\n  &lt;- 头部
+Content-Length: 42\r\n              &lt;- 头部
+\r\n                                  &lt;- 空行分隔
+{"expression": "2 + 3 * 4"}       &lt;- 请求体
+</pre>
+<p>解析分三步：</p>
+<ol>
+<li>请求行：GET /api/calculate HTTP/1.1 -> 提取method, path, version</li>
+<li>头部：逐行解析Key: Value，转为小写键名便于查找</li>
+<li>请求体：根据Content-Length读取指定字节数</li>
+</ol>
+<p> 4.2.2 路由系统</p>
+<p>人的思维是："收到请求后，看路径是什么，然后交给对应的处理器。"</p>
+<p>路由表结构：{方法} -> {路径 -> 处理函数}</p>
+<p>GET:</p>
+<pre><code>"/api/health" -&gt; health_handler
+"/api/convert/bases" -&gt; list_bases_handler</code></pre>
+<p>POST:</p>
+<pre><code>"/api/calculate" -&gt; calculate_handler
+"/api/power" -&gt; power_handler
+...
+</code></pre>
+<p> 4.2.3 静态文件服务</p>
+<p>人的思维是："前端文件放在某个目录里，当浏览器请求/index.html时，就去那个目录找到文件返回。"</p>
+<p>关键点：</p>
+<ul>
+<li>路径映射：URL /index.html -> 磁盘文件 ./frontend/dist/index.html</li>
+<li>SPA Fallback：React/Vue等单页应用刷新时，浏览器请求 /calculator，但磁盘上只有 index.html。如果文件不存在且路径无扩展名，返回 index.html。</li>
+<li>MIME类型：根据文件后缀判断Content-Type（.html -> text/html, .css -> text/css, .js -> application/javascript）</li>
+<li>安全防护：拒绝包含 .. 的路径，防止目录遍历攻击</li>
+</ul>
+
+<hr>
+
+<p> 5. 数据序列化层设计</p>
+<p> 5.1 为什么不用nlohmann/json</p>
+<p>nlohmann/json是C++最好的JSON库，但它：</p>
+<ul>
+<li>需要下载和包含一个很大的头文件（~25000行）</li>
+<li>编译时间显著增加</li>
+<li>本系统的JSON需求并不复杂（简单的对象/数组/数值）</li>
+</ul>
+<p> 5.2 手动JSON实现</p>
+<p> 5.2.1 类型系统</p>
+<p>JSON有7种类型：null, boolean, number, string, array, object。用枚举表示：</p>
+<p>enum class JsonType { Null, Boolean, Number, String, Array, Object };</p>
+
+<p>JsonValue类用type_字段标记当前存储的实际类型，用union风格的多个成员存储值。</p>
+<p> 5.2.2 解析器（递归下降）</p>
+<p>JSON语法可以用BNF描述：</p>
+<pre style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:6px;padding:16px;overflow-x:auto;line-height:1.5;font-family:monospace;font-size:0.9em;">value   -&gt; null | true | false | number | string | array | object
+array   -&gt; "[" [value ("," value)*] "]"
+object  -&gt; "{" [string ":" value ("," string ":" value)*] "}"
+</pre>
+<p>递归下降解析器按照语法规则递归调用：</p>
+<ul>
+<li>parse_value() -> 根据首字符决定调用哪个解析函数</li>
+<li>parse_string() -> 处理转义序列（\n, \t, ", \, \uXXXX）</li>
+<li>parse_number() -> 处理整数/小数/科学计数法</li>
+<li>parse_array() -> 循环解析逗号分隔的value</li>
+<li>parse_object() -> 循环解析键值对</li>
+</ul>
+<p> 5.2.3 序列化器</p>
+<p>to_string()方法根据类型递归生成JSON字符串：</p>
+<ul>
+<li>Null -> "null"</li>
+<li>Boolean -> "true"/"false"</li>
+<li>Number -> 直接转字符串（整数无小数点，浮点智能截尾）</li>
+<li>String -> 加引号，转义特殊字符</li>
+<li>Array -> [elem1, elem2, ...]</li>
+<li>Object -> {"key1":val1, "key2":val2}</li>
+</ul>
+<p> 5.3 统一响应格式</p>
+<p>所有API响应使用统一格式，通过工具函数生成：</p>
+<p>成功: { "success": true, "data": { ... } }</p>
+<p>失败: { "success": false, "error": "错误描述" }</p>
+
+<p>这样前端只需要检查 success 字段即可判断请求是否成功。</p>
+
+<hr>
+
+<p> 6. 业务逻辑层设计</p>
+<p> 6.1 表达式求值引擎</p>
+<p> 6.1.1 算法选择：调度场算法（Shunting Yard）</p>
+<p>人的思维过程：计算 2 + 3 <em> 4 时，人知道先算 3 </em> 4 再算加法。这是因为乘法优先级高于加法。</p>
+<p>计算机模拟这个过程的经典算法是调度场算法（由Dijkstra发明），分三步：</p>
+<pre style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:6px;padding:16px;overflow-x:auto;line-height:1.5;font-family:monospace;font-size:0.9em;">Step 1 - 词法分析（Tokenizer）：
+将字符串拆成token：["2", "+", "3", "*", "4"]
+Step 2 - 中缀转后缀（Infix to Postfix）：
+2 + 3 * 4 -&gt; 2 3 4 * +</pre>
+<p>后缀表达式的好处是不需要括号就能确定计算顺序。</p>
+<p>Step 3 - 后缀求值：</p>
+<p>用一个栈依次处理token：</p>
+<ul>
+<li>遇到数字：压入栈</li>
+<li>遇到运算符：弹出两个操作数，计算，结果压入栈</li>
+<li>最后栈中只剩一个值，就是结果</li>
+</ul>
+<p> 6.1.2 优先级表</p>
+<table>
+<thead>
+<tr><th>优先级</th><th>运算符</th><th>说明</th></tr>
+</thead>
+<tbody>
+<tr><td>4</td><td>_ (一元负号)</td><td>如 -5</td></tr>
+<tr><td>3</td><td>^</td><td>幂运算，右结合</td></tr>
+<tr><td>2</td><td>*, /</td><td>乘除</td></tr>
+<tr><td>1</td><td>+, -</td><td>加减</td></tr>
+</tbody>
+</table>
+<p> 6.1.3 函数支持</p>
+<p>内置函数（sin, cos, tan, sqrt, log等）在词法分析阶段识别为 TokenType::FUNCTION，在求值阶段直接调用对应的C++标准库函数。</p>
+<p> 6.2 进制转换引擎</p>
+<p> 6.2.1 核心算法</p>
+<p>进制转换的核心思想：所有进制都可以先转为十进制，再从十进制转到目标进制。</p>
+<pre style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:6px;padding:16px;overflow-x:auto;line-height:1.5;font-family:monospace;font-size:0.9em;">N进制 -&gt; 十进制：按位展开求和
+"FF" (16进制) = 15*16^1 + 15*16^0 = 240 + 15 = 255
+
+十进制 -&gt; N进制：除基取余（整数部分）+ 乘基取整（小数部分）
+255 / 16 = 15 余 15 -&gt; 最低位 F
+15 / 16 = 0 余 15  -&gt; 最高位 F</pre>
+<p>结果: "FF"</p>
+
+<p> 6.3 排列组合引擎</p>
+<p> 6.3.1 关键公式</p>
+<table>
+<thead>
+<tr><th>功能</th><th>公式</th><th>实现策略</th></tr>
+</thead>
+<tbody>
+<tr><td>排列 A(n,m)</td><td>n!/(n-m)!</td><td>循环连乘，不先算完整阶乘再除</td></tr>
+<tr><td>组合 C(n,m)</td><td>n!/(m!*(n-m)!)</td><td>利用对称性C(n,m)=C(n,n-m)简化</td></tr>
+<tr><td>圆排列</td><td>(n-1)!</td><td>固定一个元素，其余(n-1)个全排列</td></tr>
+<tr><td>错位排列</td><td>D(n)=(n-1)*(D(n-1)+D(n-2))</td><td>迭代而非递归，避免栈溢出</td></tr>
+</tbody>
+</table>
+<p> 6.3.2 溢出处理</p>
+<p>阶乘增长极快（170! > double最大值），所以：</p>
+<ul>
+<li>排列/组合使用连乘边算边除，不先算完整阶乘</li>
+<li>阶乘限制n <= 170</li>
+<li>结果用double存储（精确到整数范围约2^53）</li>
+</ul>
+<p> 6.4 几何公式引擎</p>
+<p> 6.4.1 设计模式：统一接口</p>
+<p>所有几何计算使用统一的 GeometryResult 结构返回，包含area（面积）、perimeter（周长）、volume（体积）三个字段。每个图形函数填充对应的字段。</p>
+<p> 6.4.2 输入验证</p>
+<p>每个函数开头验证参数为正数，使用 validate_positive() 统一处理。例如三角形海伦公式还要验证两边之和大于第三边。</p>
+<p> 6.5 高级功能引擎</p>
+<p> 6.5.1 矩阵运算</p>
+<p>使用行优先的二维数组 std::vector<std::vector<double>> 存储。支持操作：加、减、乘、标量乘、转置、行列式。</p>
+<p>行列式使用高斯消元法，时间复杂度O(n^3)。</p>
+<p> 6.5.2 单位转换</p>
+<p>使用转换因子法：所有单位都先转为基准单位（长度->米，重量->千克），再从基准单位转到目标单位。</p>
+<p>温度需要特殊处理（不是线性比例）：</p>
+<ul>
+<li>C -> F: F = C * 9/5 + 32</li>
+<li>C -> K: K = C + 273.15</li>
+</ul>
+
+<hr>
+
+<p> 7. API接口层设计</p>
+<p> 7.1 RESTful设计</p>
+<p>所有API遵循RESTful风格：</p>
+<ul>
+<li>POST 用于有请求体的操作（计算、转换）</li>
+<li>GET 用于查询类操作（支持的进制列表、单位列表）</li>
+<li>URL路径使用名词而非动词：/api/calculate 而非 /api/doCalculate</li>
+</ul>
+<p> 7.2 路由注册</p>
+<p>在 register_api_handlers() 函数中集中注册所有路由，使用Lambda表达式作为处理函数。这种设计的好处是：</p>
+<ul>
+<li>所有路由定义在一个地方，便于查看和维护</li>
+<li>Lambda可以捕获局部变量，无需额外的上下文参数</li>
+<li>每个Lambda内部结构一致：解析参数 -> 调用引擎 -> 封装响应</li>
+</ul>
+<p> 7.3 CORS支持</p>
+<pre style="background:#f8f8f8;border:1px solid #e8e8e8;border-radius:6px;padding:16px;overflow-x:auto;line-height:1.5;font-family:monospace;font-size:0.9em;">跨域资源共享（CORS, Cross-Origin Resource Sharing）是前后端分离的必要配置。后端默认在所有响应中添加：
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+Access-Control-Allow-Headers: Content-Type, Authorization
+</pre>
+<p>这样前端可以部署在任何域名下，不限于后端同一域名。</p>
+
+<hr>
+
+<p> 8. 模块间交互设计</p>
+<p> 8.1 依赖关系图</p>
+<p>main.cpp</p>
+<pre><code>+-&gt; api_handlers
+  +-&gt; http_server
+  |   +-&gt; platform
+  +-&gt; json
+  |   +-&gt; (无依赖)
+  +-&gt; calc_engine
+  +-&gt; base_converter
+  +-&gt; permutation
+  +-&gt; geometry
+  +-&gt; advanced
+</code></pre>
+<p>所有模块最终都依赖 platform（通过 http_server 间接）</p>
+<p>json 是唯一零依赖的模块</p>
+
+<p> 8.2 接口契约</p>
+<p>每个模块的接口设计遵循最小暴露原则：</p>
+<table>
+<thead>
+<tr><th>模块</th><th>暴露的接口</th><th>隐藏的实现</th></tr>
+</thead>
+<tbody>
+<tr><td>platform</td><td>socket_t, NetworkInit, socket_ops::*</td><td>OS特定的头文件和宏</td></tr>
+<tr><td>json</td><td>JsonValue, JsonParser, json_utils::*</td><td>内部tokenize/infix_to_postfix</td></tr>
+<tr><td>http_server</td><td>HttpServer, Router, HttpRequest, HttpResponse</td><td>socket读写细节</td></tr>
+<tr><td>calc_engine</td><td>CalcEngine::evaluate(), CalcEngine::power(), ...</td><td>Token结构, 调度场算法</td></tr>
+<tr><td>api_handlers</td><td>register_api_handlers()</td><td>每个Lambda的内部逻辑</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<p> 9. 内存管理策略</p>
+<p> 9.1 零动态分配策略</p>
+<p>本系统尽量在栈上分配内存，减少堆分配：</p>
+<ul>
+<li>JsonValue 使用值语义，拷贝时复制数据（数据量小，无性能问题）</li>
+<li>HTTP请求/响应在栈上构建</li>
+<li>计算中间结果使用栈变量</li>
+</ul>
+<p> 9.2 字符串策略</p>
+<ul>
+<li>JSON序列化使用 std::ostringstream 拼接，避免频繁的字符串拼接</li>
+<li>HTTP响应使用 std::ostringstream 一次性构建完整响应</li>
+</ul>
+<p> 9.3 实测内存开销</p>
+<table>
+<thead>
+<tr><th>指标</th><th>数值</th></tr>
+</thead>
+<tbody>
+<tr><td>启动后RSS</td><td>~900 KB</td></tr>
+<tr><td>预热后RSS</td><td>~1.7 MB</td></tr>
+<tr><td>Heap实际使用</td><td>~40 KB</td></tr>
+<tr><td>VSZ</td><td>~2.6 MB</td></tr>
+<tr><td>Swap</td><td>0 KB</td></tr>
+<tr><td>线程数</td><td>1</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<p> 10. 错误处理策略</p>
+<p> 10.1 异常层次</p>
+<p>CalcException (基类)</p>
+<pre><code>+-&gt; DivisionByZeroException
++-&gt; OverflowException
++-&gt; InvalidInputException
++-&gt; DomainException
+</code></pre>
+<p>所有计算错误都通过异常传播，由 api_handlers 中的 safe_calc 工具函数统一捕获并转为JSON错误响应。</p>
+<p> 10.2 异常 vs 错误码</p>
+<p>选择异常而非错误码的原因：</p>
+<ol>
+<li>强制性：异常不能被忽略，错误码可以被忽略</li>
+<li>传播性：异常自动沿调用栈传播，不需要在每个函数中检查</li>
+<li>信息性：异常对象可以携带详细的错误信息</li>
+</ol>
+<p> 10.3 前端友好的错误信息</p>
+<p>所有错误信息使用中文，因为前端用户是中文使用者。例如：</p>
+<ul>
+<li>"错误：不能除以零"</li>
+<li>"输入错误：阶乘只定义于非负整数"</li>
+<li>"定义域错误：负数没有实数平方根"</li>
+</ul>
+
+<hr>
+
+<p> 11. 编译系统设计</p>
+<p> 11.1 为什么提供三种编译方式</p>
+<table>
+<thead>
+<tr><th>方式</th><th>适用场景</th><th>优势</th></tr>
+</thead>
+<tbody>
+<tr><td>CMake</td><td>大型项目/团队协作</td><td>跨平台，IDE支持好</td></tr>
+<tr><td>Makefile</td><td>快速编译</td><td>简单直接</td></tr>
+<tr><td>直接g++</td><td>最快测试</td><td>一条命令</td></tr>
+</tbody>
+</table>
+<p> 11.2 Windows特殊处理</p>
+<p>Windows需要链接 ws2_32.lib（Winsock库），通过 -lws2_32 指定。同时需要定义几个宏避免Windows头文件的副作用：</p>
+<ul>
+<li>WIN32_LEAN_AND_MEAN：排除不常用的Windows API</li>
+<li>NOMINMAX：禁用Windows的min/max宏，避免与STL冲突</li>
+</ul>
+
+<hr>
+
+<p> 12. 设计决策记录</p>
+<p> ADR-001：纯C++实现，零第三方依赖</p>
+<ul>
+<li>决策：不使用Boost、nlohmann/json、mongoose等第三方库</li>
+<li>理由：可控性、学习价值、编译简单、最终体积小</li>
+<li>影响：需要手动实现HTTP服务器和JSON解析器</li>
+</ul>
+<p> ADR-002：select模型而非epoll/IOCP</p>
+<ul>
+<li>决策：使用select实现IO多路复用</li>
+<li>理由：简单、可移植、足够满足计算器服务的并发需求</li>
+<li>影响：高并发（>1000连接）时性能会下降</li>
+</ul>
+<p> ADR-003：同步处理而非多线程</p>
+<ul>
+<li>决策：每个请求在主线程同步处理</li>
+<li>理由：计算任务短、无阻塞IO、避免锁竞争</li>
+<li>影响：无法利用多核CPU</li>
+</ul>
+<p> ADR-004：异常驱动错误处理</p>
+<ul>
+<li>决策：使用C++异常而非错误码</li>
+<li>理由：强制性、传播性、信息性</li>
+<li>影响：需要理解C++异常机制</li>
+</ul>
+<p> ADR-005：RAII模式管理所有资源</p>
+<ul>
+<li>决策：所有资源通过类的构造/析构管理</li>
+<li>理由：防止资源泄漏，异常安全</li>
+<li>影响：NetworkInit、HttpServer等类使用RAII</li>
+</ul>
+<p> ADR-006：前后端完全分离，CORS默认开启</p>
+<ul>
+<li>决策：前端和后端独立运行，通过CORS允许跨域</li>
+<li>理由：部署灵活、开发方便、前端可部署到CDN</li>
+<li>影响：后端需要处理OPTIONS预检请求</li>
+</ul>
+<p> ADR-007：JSON作为统一数据交换格式</p>
+<ul>
+<li>决策：所有API请求/响应使用JSON</li>
+<li>理由：JavaScript原生支持、人类可读、RESTful标准</li>
+<li>影响：需要手动实现JSON解析/生成</li>
+</ul>
+<p> ADR-008：统一API响应格式</p>
+<ul>
+<li>决策：所有响应包含 {success, data/error} 结构</li>
+<li>理由：前端处理逻辑统一</li>
+<li>影响：需要在api_handlers中统一封装</li>
+</ul>
+
+</body>
+</html>
