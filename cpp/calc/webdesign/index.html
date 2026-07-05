@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web 服务端计算器 — 前端设计文档</title>
+    <style>
+        /* ===== 全局重置与字体 ===== */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: rgba(30, 41, 59, 0.7);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-primary: #6366f1;
+            --accent-secondary: #7c3aed;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --border-color: rgba(148, 163, 184, 0.15);
+            --code-bg: #0d1117;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --error: #ef4444;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Liter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans SC', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.8;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ===== 布局容器 ===== */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 24px;
+        }
+
+        /* ===== 顶部导航栏 ===== */
+        .top-nav {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .top-nav-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .nav-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--accent-primary);
+            letter-spacing: 0.5px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-primary);
+        }
+
+        /* ===== 头部区域 ===== */
+        .hero {
+            padding: 60px 0 40px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 40px;
+        }
+
+        .hero h1 {
+            font-size: 36px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        .hero .subtitle {
+            font-size: 18px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        /* ===== 目录 TOC ===== */
+        .toc {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px 28px;
+            margin-bottom: 40px;
+        }
+
+        .toc-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toc ul {
+            list-style: none;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px 24px;
+        }
+
+        .toc li a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.2s;
+            display: block;
+            padding: 4px 0;
+        }
+
+        .toc li a:hover {
+            color: var(--accent-primary);
+        }
+
+        .toc li a::before {
+            content: "#";
+            color: var(--accent-primary);
+            margin-right: 6px;
+            opacity: 0.6;
+        }
+
+        /* ===== 标题样式 ===== */
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 48px 0 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--accent-primary);
+            color: var(--text-primary);
+            scroll-margin-top: 60px;
+        }
+
+        h2 {
+            font-size: 26px;
+            font-weight: 600;
+            margin: 40px 0 16px;
+            color: var(--text-primary);
+            scroll-margin-top: 60px;
+        }
+
+        h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 32px 0 12px;
+            color: var(--accent-primary);
+            scroll-margin-top: 60px;
+        }
+
+        h4 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 24px 0 10px;
+            color: var(--text-primary);
+        }
+
+        h5 {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 20px 0 8px;
+            color: var(--text-secondary);
+        }
+
+        /* ===== 段落与文本 ===== */
+        p {
+            margin-bottom: 14px;
+            color: var(--text-primary);
+        }
+
+        strong {
+            color: #fff;
+            font-weight: 600;
+        }
+
+        em {
+            color: var(--accent-primary);
+            font-style: italic;
+        }
+
+        a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+
+        a:hover {
+            opacity: 0.8;
+            text-decoration: underline;
+        }
+
+        /* ===== 引用块 ===== */
+        blockquote {
+            border-left: 3px solid var(--accent-primary);
+            padding: 16px 20px;
+            margin: 20px 0;
+            background: var(--bg-card);
+            border-radius: 0 8px 8px 0;
+            color: var(--text-secondary);
+        }
+
+        blockquote p {
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        blockquote p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* ===== 代码块 ===== */
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px 24px;
+            margin: 20px 0;
+            overflow-x: auto;
+            position: relative;
+        }
+
+        pre::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 36px;
+            background: rgba(99, 102, 241, 0.08);
+            border-radius: 10px 10px 0 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+            font-size: 14px;
+            line-height: 1.7;
+            color: #e6edf3;
+            display: block;
+            margin-top: 16px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        code {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.25);
+            border-radius: 5px;
+            padding: 2px 8px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #c9d1d9;
+        }
+
+        pre code {
+            background: none;
+            border: none;
+            padding: 0;
+        }
+
+        /* ===== 表格 ===== */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+        }
+
+        thead {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(124, 58, 237, 0.2));
+        }
+
+        th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 14px;
+            color: #fff;
+            border-bottom: 1px solid var(--border-color);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-primary);
+            font-size: 14px;
+            vertical-align: top;
+        }
+
+        tbody tr {
+            background: var(--bg-card);
+            transition: background 0.2s;
+        }
+
+        tbody tr:nth-child(even) {
+            background: rgba(30, 41, 59, 0.5);
+        }
+
+        tbody tr:hover {
+            background: rgba(99, 102, 241, 0.08);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ===== 列表 ===== */
+        ul, ol {
+            margin: 14px 0;
+            padding-left: 28px;
+        }
+
+        li {
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        ul li::marker {
+            color: var(--accent-primary);
+        }
+
+        /* ===== 水平分隔线 ===== */
+        hr {
+            border: none;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
+            margin: 48px 0;
+            opacity: 0.5;
+        }
+
+        /* ===== 滚动条 ===== */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--text-muted);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* ===== 响应式 ===== */
+        @media (max-width: 768px) {
+            .container {
+                padding: 24px 16px;
+            }
+
+            .hero h1 {
+                font-size: 26px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+
+            h2 {
+                font-size: 22px;
+            }
+
+            h3 {
+                font-size: 18px;
+            }
+
+            .toc ul {
+                grid-template-columns: 1fr;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            th, td {
+                padding: 10px 12px;
+            }
+        }
+
+        /* ===== 特殊注释 ===== */
+        abbr[title] {
+            border-bottom: 1px dotted var(--accent-primary);
+            cursor: help;
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="top-nav">
+        <div class="top-nav-inner">
+            <span class="nav-title">🎨 Frontend Design</span>
+            <ul class="nav-links">
+                <li><a href="#_1">主体设计</a></li>
+                <li><a href="#_2">接口调用</a></li>
+                <li><a href="#_3">PC端UI</a></li>
+                <li><a href="#_4">移动端UI</a></li>
+                <li><a href="#_5">原则总结</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="container">
+        <div class="hero">
+            <h1>Web 服务端计算器 — 前端设计文档</h1>
+            <p class="subtitle">前端系统的设计理念、架构决策、接口调用策略及多端UI设计规范。</p>
+        </div>
+
+<h2 id="_1">目录</h2>
+<ol>
+<li><a href="#一前端主体设计">前端主体设计</a></li>
+<li><a href="#二后端接口调用设计">后端接口调用设计</a></li>
+<li><a href="#三pc-端-ui-设计">PC 端 UI 设计</a></li>
+<li><a href="#四移动端-ui-设计">移动端 UI 设计</a></li>
+<li><a href="#五设计原则总结">设计原则总结</a></li>
+</ol>
+<hr />
+<h2 id="_2">一、前端主体设计</h2>
+<h3 id="11">1.1 设计哲学</h3>
+<h4 id="dark-tech-theme">风格锚点：深色科技主题（Dark Tech Theme）</h4>
+<p>本前端采用<strong>深色科技主题</strong>作为核心设计语言，灵感源自现代开发者工具（Developer Tools）与科学计算软件的视觉风格——如 Mathematica 的计算笔记本界面、MATLAB 的暗色模式、以及 VS Code 的深色主题。这种设计选择基于以下考量：</p>
+<ol>
+<li><strong>功能性优先</strong>：计算器是高频率交互的工具型应用，深色背景减少长时间使用的视觉疲劳，同时让彩色数据和运算符在暗色画布上形成高对比度，提升可读性。</li>
+<li><strong>科技感表达</strong>：深色背景配合蓝紫色调的发光效果（Glow Effects），天然传递"精密计算""科学严谨"的心理暗示，与产品的计算工具定位高度契合。</li>
+<li><strong>情绪隔离</strong>：深色界面能创造一种"专注模式"的心理暗示，帮助用户屏蔽外界干扰，沉浸在计算任务中。</li>
+</ol>
+<h4 id="medium-density">信息密度定位：中等密度（Medium Density）</h4>
+<ul>
+<li>每个页面聚焦一个核心计算任务，避免功能堆砌</li>
+<li>留白（Whitespace）率保持在25%-30%，确保界面呼吸感</li>
+<li>通过标签页（Tab）切换组织次级功能，而非一次性展示所有选项</li>
+</ul>
+<h3 id="12">1.2 技术架构</h3>
+<h4 id="vanilla-stack">纯原生三件套架构（Vanilla Stack）</h4>
+<p>经过从 React 到纯 HTML + CSS + JS 的架构重构，最终选择<strong>原生三件套</strong>方案，核心考量如下：</p>
+<table>
+<thead>
+<tr>
+<th>维度</th>
+<th>React 方案</th>
+<th>纯原生方案（最终选择）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>部署复杂度</td>
+<td>需构建工具（Vite/Webpack），输出产物含哈希文件名</td>
+<td>无需构建，三文件直接部署</td>
+</tr>
+<tr>
+<td>运行时依赖</td>
+<td>需加载 React 运行时（~130KB gzip）</td>
+<td>零依赖，浏览器原生支持</td>
+</tr>
+<tr>
+<td>文件数量</td>
+<td>多文件（JSX 组件拆分 + 构建产物）</td>
+<td>严格三文件（index.html, style.css, app.js）</td>
+</tr>
+<tr>
+<td>服务器配置</td>
+<td>需 SPA Fallback 支持</td>
+<td>单页但兼容传统服务器</td>
+</tr>
+<tr>
+<td>可维护性</td>
+<td>组件化，适合大型应用</td>
+<td>代码集中，适合中型工具应用</td>
+</tr>
+<tr>
+<td>离线可用性</td>
+<td>依赖构建产物</td>
+<td>可完整保存为本地文件离线使用</td>
+</tr>
+</tbody>
+</table>
+<p><strong>最终选择纯原生方案的理由</strong>：<br />
+- 本应用是<strong>工具型单页应用</strong>，功能模块间耦合度低但规模可控（~1000行JS）<br />
+- 用户核心诉求之一是"简单部署"——三文件可以直接复制到任何Web服务器甚至本地双击打开<br />
+- 无需 SPA Fallback 配置，传统静态服务器（如 Nginx、Apache、甚至 Python <code>http.server</code>）即可完美支持<br />
+- 零运行时依赖意味着在任何浏览器上都能立即工作，包括老旧设备</p>
+<h4 id="_3">文件组织</h4>
+<pre><code>frontend/dist/
+├── index.html    # 页面结构 + 6个功能页面的DOM骨架（约180行）
+├── style.css     # 全部样式：CSS变量、布局、动画、响应式（约450行）
+└── app.js        # 全部逻辑：路由、API调用、DOM操作、事件处理（约1000行）
+</code></pre>
+<h4 id="_4">状态管理</h4>
+<p>采用<strong>全局单例模式</strong>管理应用状态：</p>
+<pre><code class="language-javascript">// 全局状态对象（替代 React 的 useState + Context）
+const AppState = {
+    currentPage: 'home',          // 当前页面标识
+    serverUrl: 'http://localhost:8080',  // 后端服务地址
+    serverConfig: {               // 服务器配置
+        preset: 'local',
+        customUrl: '',
+        isConnected: false
+    },
+    calculator: {                 // 计算器页面状态
+        expression: '',
+        result: '',
+        history: []
+    }
+    // ... 其他页面状态
+};
+</code></pre>
+<p>状态更新后手动触发 DOM 更新（替代 React 的虚拟 DOM Diff）：</p>
+<pre><code class="language-javascript">// 路由切换：更新 currentPage，手动显示/隐藏页面元素
+function navigateTo(page) {
+    AppState.currentPage = page;
+    // 隐藏所有页面
+    document.querySelectorAll('.page').forEach(p =&gt; p.style.display = 'none');
+    // 显示目标页面
+    document.getElementById('page-' + page).style.display = 'block';
+    // 更新导航高亮
+    updateNavHighlight(page);
+}
+</code></pre>
+<h3 id="13">1.3 页面结构</h3>
+<p>采用<strong>单页多视图（Single-Page Multi-View）</strong>架构，通过 CSS <code>display</code> 切换实现页面导航：</p>
+<table>
+<thead>
+<tr>
+<th>页面ID</th>
+<th>路由标识</th>
+<th>功能描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>home</code></td>
+<td><code>#home</code></td>
+<td>首页：展示系统概览、功能导航卡片</td>
+</tr>
+<tr>
+<td><code>calculator</code></td>
+<td><code>#calculator</code></td>
+<td>科学计算器：表达式输入、求值、历史记录</td>
+</tr>
+<tr>
+<td><code>base</code></td>
+<td><code>#base</code></td>
+<td>进制转换：支持2-36进制互转</td>
+</tr>
+<tr>
+<td><code>permutation</code></td>
+<td><code>#permutation</code></td>
+<td>排列组合：7种计数模型</td>
+</tr>
+<tr>
+<td><code>geometry</code></td>
+<td><code>#geometry</code></td>
+<td>几何公式：18种图形计算</td>
+</tr>
+<tr>
+<td><code>advanced</code></td>
+<td><code>#advanced</code></td>
+<td>高级功能：矩阵、单位转换、数论、统计、方程</td>
+</tr>
+</tbody>
+</table>
+<p>每个页面是一个独立的 <code>&lt;div class="page"&gt;</code> 容器，默认隐藏，通过 <code>navigateTo()</code> 函数切换显示。</p>
+<h3 id="14">1.4 交互设计</h3>
+<h4 id="_5">路由系统</h4>
+<p>由于采用纯原生方案，路由通过 <code>window.location.hash</code> 实现：</p>
+<pre><code class="language-javascript">// 监听 hash 变化实现浏览器前进/后退支持
+window.addEventListener('hashchange', () =&gt; {
+    const page = location.hash.slice(1) || 'home';
+    navigateTo(page);
+});
+
+// 导航函数
+function navigateTo(page) {
+    location.hash = page;  // 更新URL hash
+    // DOM 切换逻辑...
+}
+</code></pre>
+<ul>
+<li><code>http://localhost:8080/#calculator</code> → 显示计算器页面</li>
+<li><code>http://localhost:8080/#base</code> → 显示进制转换页面</li>
+<li>浏览器前进/后退按钮自动工作</li>
+</ul>
+<h4 id="_6">服务器配置弹窗</h4>
+<p>前端实现了完整的服务器连接管理功能：</p>
+<ol>
+<li><strong>预设服务器列表</strong>：下拉选择框提供常用后端地址（本地、局域网、远程演示）</li>
+<li><strong>手动输入</strong>：自定义URL输入框，支持任意有效的HTTP地址</li>
+<li><strong>连接测试</strong>：发送<code>1+1</code>测试请求验证连通性</li>
+<li><strong>持久化</strong>：配置自动保存到 <code>localStorage</code>，刷新不丢失</li>
+</ol>
+<p>交互流程：</p>
+<pre><code>用户点击&quot;服务器设置&quot;按钮
+    → 弹出模态对话框（Modal Dialog）
+    → 选择预设或输入自定义地址
+    → 点击&quot;测试连接&quot;按钮
+    → 发送 POST /api/calculate {&quot;expression&quot;: &quot;1+1&quot;}
+    → 收到 {&quot;success&quot;: true, &quot;data&quot;: {&quot;result&quot;: 2}}
+    → 显示&quot;连接成功&quot;绿色提示
+    → 点击&quot;保存&quot;关闭弹窗
+    → 配置写入 localStorage
+</code></pre>
+<hr />
+<h2 id="_7">二、后端接口调用设计</h2>
+<h3 id="21">2.1 设计视角说明</h3>
+<blockquote>
+<p>本章节以<strong>双重身份</strong>撰写：既是<strong>专业程序设计师</strong>（负责后端API的设计与实现），又是<strong>前端设计师</strong>（负责前端如何调用这些API）。这种双重身份确保接口设计既满足后端的技术约束，又符合前端的调用习惯。</p>
+</blockquote>
+<h3 id="22-api">2.2 API 调用层设计</h3>
+<h4 id="_8">核心请求函数</h4>
+<pre><code class="language-javascript">/**
+ * 通用API请求函数
+ * @param {string} endpoint - API端点路径（如 '/api/calculate'）
+ * @param {Object} data - 请求体数据对象
+ * @param {Function} callback - 回调函数(error, response)
+ */
+function apiRequest(endpoint, data, callback) {
+    const xhr = new XMLHttpRequest();
+    // 构造完整URL：服务器地址 + 端点路径
+    xhr.open('POST', AppState.serverUrl + endpoint, true);
+    // 声明请求体格式为JSON
+    xhr.setRequestHeader('Content-Type', 'application/json');
+
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {  // 请求完成
+            if (xhr.status === 200) {
+                const response = JSON.parse(xhr.responseText);
+                callback(null, response);
+            } else {
+                callback(new Error('HTTP ' + xhr.status));
+            }
+        }
+    };
+
+    xhr.onerror = () =&gt; callback(new Error('Network Error'));
+    xhr.send(JSON.stringify(data));
+}
+</code></pre>
+<p><strong>设计决策说明</strong>（后端设计师角度）：<br />
+- 使用<code>POST</code>方法而非<code>GET</code>：请求体可能包含复杂JSON结构（如矩阵二维数组），URL长度受限且不适合传输复杂数据<br />
+- <code>Content-Type: application/json</code>：明确声明请求体格式，后端据此解析<br />
+- 异步回调模式：保持非阻塞UI，计算期间用户界面保持响应</p>
+<p><strong>设计决策说明</strong>（前端设计师角度）：<br />
+- 选择<code>XMLHttpRequest</code>而非<code>fetch</code> API：兼容性更好（支持IE11），错误处理更直观<br />
+- 全局统一的<code>apiRequest</code>函数：所有API调用走同一通道，便于统一添加日志、错误处理、Loading状态<br />
+- 回调函数而非Promise：纯原生JS环境，减少Polyfill依赖</p>
+<h4 id="_9">响应处理统一模式</h4>
+<pre><code class="language-javascript">apiRequest('/api/calculate', { expression: '2+3*4' }, (err, res) =&gt; {
+    if (err) {
+        showError('请求失败: ' + err.message);
+        return;
+    }
+    if (!res.success) {
+        showError('计算错误: ' + res.error);
+        return;
+    }
+    showResult(res.data.result);
+});
+</code></pre>
+<p>三层错误处理：<br />
+1. <strong>网络层错误</strong>（<code>xhr.onerror</code>）：服务器不可达、超时、CORS拒绝等<br />
+2. <strong>HTTP层错误</strong>（<code>xhr.status !== 200</code>）：404、500等HTTP状态码异常<br />
+3. <strong>业务层错误</strong>（<code>res.success === false</code>）：表达式语法错误、参数无效等</p>
+<h3 id="23">2.3 各模块接口调用</h3>
+<h4 id="_10">科学计算器</h4>
+<pre><code class="language-javascript">// 表达式求值
+apiRequest('/api/calculate', { expression: '2+3*4' }, callback);
+
+// 支持的输入：
+// - 基本运算: 2+3, 10-5, 6*7, 8/2
+// - 幂运算: 2^10, 3^0.5
+// - 括号: (2+3)*4
+// - 函数: sin(pi/2), sqrt(16), log(100), ln(e)
+// - 常量: pi, e
+// - 嵌套: sin(cos(pi/4))
+</code></pre>
+<h4 id="_11">进制转换</h4>
+<pre><code class="language-javascript">// 进制转换 - value为字符串（支持大写字母）
+apiRequest('/api/base/convert', { 
+    value: '1A3F',   // 要转换的值
+    from: 16,        // 原进制（2-36）
+    to: 10           // 目标进制（2-36）
+}, callback);
+
+// 示例: { value: &quot;1010&quot;, from: 2, to: 10 } → { result: &quot;10&quot; }
+// 示例: { value: &quot;255&quot;, from: 10, to: 16 } → { result: &quot;FF&quot; }
+</code></pre>
+<h4 id="_12">排列组合</h4>
+<pre><code class="language-javascript">// 排列 A(n,m)
+apiRequest('/api/permutation', { n: 5, m: 3 }, callback);
+
+// 组合 C(n,m)
+apiRequest('/api/combination', { n: 5, m: 3 }, callback);
+
+// 圆排列 (n-1)!/2
+apiRequest('/api/circle_permutation', { n: 5 }, callback);
+
+// 可重复排列 n^m
+apiRequest('/api/repeatable_perm', { n: 5, m: 3 }, callback);
+
+// 可重复组合 C(n+m-1, m)
+apiRequest('/api/repeatable_comb', { n: 5, m: 3 }, callback);
+
+// 错位排列 !n
+apiRequest('/api/derangement', { n: 5 }, callback);
+
+// 阶乘 n!
+apiRequest('/api/factorial', { n: 5 }, callback);
+</code></pre>
+<h4 id="_13">几何公式</h4>
+<pre><code class="language-javascript">// 几何计算 - shape指定图形类型，其他字段为图形参数
+apiRequest('/api/geometry', { 
+    shape: 'circle',    // 图形名称
+    radius: 5           // 图形参数（不同图形字段不同）
+}, callback);
+
+// 平面图形: rectangle(l,w), square(s), triangle(b,h,a,b,c)
+//            circle(r), trapezoid(a,b,h,c,d), parallelogram(b,h,a)
+//            rhombus(d1,d2,s), sector(r,theta), ellipse(a,b)
+//            regular_polygon(n,s)
+// 立体图形: cube(s), cuboid(l,w,h), sphere(r), cylinder(r,h)
+//            cone(r,h), pyramid(B,P,l,h), prism(B,P,h)
+//            frustum(r1,r2,h)
+</code></pre>
+<h4 id="_14">矩阵运算</h4>
+<pre><code class="language-javascript">// 矩阵运算 - op指定操作类型
+apiRequest('/api/matrix', {
+    op: 'multiply',        // 操作: add, subtract, multiply, scalar_multiply, transpose, determinant
+    a: [[1, 2], [3, 4]],   // 矩阵A
+    b: [[5, 6], [7, 8]]    // 矩阵B（scalar_multiply时替换为scalar字段）
+}, callback);
+
+// 二维数组格式: [[row1_col1, row1_col2], [row2_col1, row2_col2]]
+</code></pre>
+<h4 id="_15">单位转换</h4>
+<pre><code class="language-javascript">// 单位转换 - type指定转换类别
+apiRequest('/api/unit_convert', {
+    type: 'temperature',   // 类别: length, weight, temperature, area, volume
+    value: 25,             // 要转换的值
+    from: 'c',             // 原单位缩写
+    to: 'f'                // 目标单位缩写
+}, callback);
+
+// 温度单位: c(摄氏度), f(华氏度), k(开尔文)
+// 长度单位: m, km, cm, mm, in(英寸), ft(英尺), yd(码), mi(英里)
+// 重量单位: kg, g, mg, t(吨), lb(磅), oz(盎司)
+</code></pre>
+<h4 id="_16">数论函数</h4>
+<pre><code class="language-javascript">// 数论函数 - op指定操作
+apiRequest('/api/number_theory', {
+    op: 'gcd',    // 操作: gcd, lcm, is_prime, prime_factors, fibonacci, is_perfect, euler_phi
+    a: 48,        // 参数（不同操作参数不同）
+    b: 18
+}, callback);
+
+// gcd/lcm: 参数 a, b
+// is_prime: 参数 n
+// prime_factors: 参数 n
+// fibonacci: 参数 n（第n项）
+// is_perfect: 参数 n
+// euler_phi: 参数 n
+</code></pre>
+<h4 id="_17">统计分析</h4>
+<pre><code class="language-javascript">// 统计分析 - data为数据数组
+apiRequest('/api/statistics', {
+    data: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+}, callback);
+
+// 返回: { mean, median, variance, std_dev, min, max, sum, count }
+</code></pre>
+<h4 id="_18">方程求解</h4>
+<pre><code class="language-javascript">// 一元二次方程 ax² + bx + c = 0
+apiRequest('/api/equation', {
+    a: 1,
+    b: -5,
+    c: 6
+}, callback);
+
+// 返回: { root1, root2, discriminant, type: 'real'|'equal'|'complex' }
+</code></pre>
+<h3 id="24">2.4 错误处理策略</h3>
+<h4 id="_19">前端错误处理层次</h4>
+<table>
+<thead>
+<tr>
+<th>错误类型</th>
+<th>检测方式</th>
+<th>用户提示</th>
+<th>恢复策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>网络不可达</td>
+<td>xhr.onerror</td>
+<td>"无法连接到服务器，请检查网络或服务器地址"</td>
+<td>提示检查服务器配置</td>
+</tr>
+<tr>
+<td>HTTP 404</td>
+<td>status === 404</td>
+<td>"请求的资源不存在"</td>
+<td>检查API路径是否正确</td>
+</tr>
+<tr>
+<td>HTTP 500</td>
+<td>status === 500</td>
+<td>"服务器内部错误"</td>
+<td>稍后重试</td>
+</tr>
+<tr>
+<td>业务错误</td>
+<td>res.success === false</td>
+<td>显示 res.error 内容</td>
+<td>根据错误提示修正输入</td>
+</tr>
+<tr>
+<td>JSON解析失败</td>
+<td>try-catch JSON.parse</td>
+<td>"服务器返回了无效的数据格式"</td>
+<td>检查后端服务是否正常</td>
+</tr>
+<tr>
+<td>CORS错误</td>
+<td>浏览器控制台</td>
+<td>"跨域访问被拒绝，请检查服务器CORS配置"</td>
+<td>确认后端已开启CORS</td>
+</tr>
+</tbody>
+</table>
+<h4 id="loading">Loading 状态管理</h4>
+<pre><code class="language-javascript">function apiRequestWithLoading(endpoint, data, callback) {
+    showLoading(true);  // 显示加载动画（旋转器或进度条）
+
+    apiRequest(endpoint, data, (err, res) =&gt; {
+        showLoading(false);  // 隐藏加载动画
+        callback(err, res);
+    });
+}
+</code></pre>
+<p>计算密集型请求（如矩阵乘法、大数阶乘）可能耗时较长，前端需显示Loading状态防止用户重复提交。</p>
+<hr />
+<h2 id="pc-ui">三、PC 端 UI 设计</h2>
+<h3 id="31">3.1 布局体系</h3>
+<h4 id="_20">全局布局特征</h4>
+<ul>
+<li><strong>容器宽度</strong>：最大宽度1200px，居中显示（<code>margin: 0 auto</code>）</li>
+<li><strong>页面边距</strong>：左右padding 32px，上下padding 24px</li>
+<li><strong>内容区宽度</strong>：实际内容区域最大宽度 = 1200 - 64 = 1136px</li>
+<li><strong>导航栏</strong>：固定在页面顶部，高度64px，包含Logo、页面链接、服务器设置按钮</li>
+<li><strong>页面切换动画</strong>：淡入淡出（fade-in/fade-out），时长200ms</li>
+</ul>
+<pre><code>+----------------------------------------------------------+
+| [Logo]  首页  计算器  进制转换  排列组合  几何  高级  [设置] |  ← 导航栏 (64px)
++----------------------------------------------------------+
+|                                                          |
+|                    页面内容区域                             |
+|              (最大宽度1200px, 居中)                        |
+|                                                          |
+|                                                          |
++----------------------------------------------------------+
+|              © 2025 Calculator Server                     |  ← 页脚
++----------------------------------------------------------+
+</code></pre>
+<h4 id="_21">导航栏设计</h4>
+<pre><code class="language-css">.navbar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    height: 64px;
+    background: var(--card-bg);        /* 半透明深色背景 */
+    backdrop-filter: blur(10px);        /* 毛玻璃效果 */
+    border-bottom: 1px solid var(--border-color);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    padding: 0 32px;
+}
+</code></pre>
+<p>导航项：<br />
+- 默认状态：文字颜色 <code>--text-secondary</code>，无下划线<br />
+- 悬停状态：文字颜色 <code>--primary</code>，底部出现2px <code>--primary</code> 色下划线<br />
+- 激活状态：文字颜色 <code>--primary</code>，底部2px <code>--primary</code> 色下划线常驻</p>
+<h4 id="_22">网格系统</h4>
+<p>基于 CSS Grid 的12列网格：</p>
+<pre><code class="language-css">.grid {
+    display: grid;
+    gap: 24px;
+}
+
+.grid-2 { grid-template-columns: repeat(2, 1fr); }  /* 两列 */
+.grid-3 { grid-template-columns: repeat(3, 1fr); }  /* 三列 */
+.grid-4 { grid-template-columns: repeat(4, 1fr); }  /* 四列 */
+</code></pre>
+<h3 id="32-home">3.2 首页（Home）设计</h3>
+<h4 id="_23">页面布局</h4>
+<pre><code>+----------------------------------------------------------+
+|  首页                                                     |
++----------------------------------------------------------+
+|                                                          |
+|          [大标题] Web 服务端多功能计算器                    |
+|          [副标题] 跨平台 · 高性能 · 前后端分离              |
+|                                                          |
++----------------------------------------------------------+
+|                                                          |
+|  +---------------+  +---------------+  +---------------+  |
+|  | [计算器图标]   |  | [转换图标]    |  | [排列图标]    |  |
+|  | 科学计算器     |  | 进制转换      |  | 排列组合      |  |
+|  | 表达式求值...  |  | 2-36进制...   |  | 7种计数模型...|  |
+|  | [进入 →]      |  | [进入 →]      |  | [进入 →]      |  |
+|  +---------------+  +---------------+  +---------------+  |
+|                                                          |
+|  +---------------+  +---------------+                    |
+|  | [几何图标]    |  | [高级图标]    |                    |
+|  | 几何公式      |  | 高级功能      |                    |
+|  | 18种图形...   |  | 矩阵/方程...  |                    |
+|  | [进入 →]      |  | [进入 →]      |                    |
+|  +---------------+  +---------------+                    |
+|                                                          |
++----------------------------------------------------------+
+|  [系统状态: ● 已连接]  [服务器: localhost:8080]           |
++----------------------------------------------------------+
+</code></pre>
+<h4 id="_24">功能卡片设计</h4>
+<pre><code class="language-css">.feature-card {
+    background: var(--card-bg);           /* 半透明深色背景 rgba(30,41,59,0.6) */
+    border: 1px solid var(--border-color); /* 细边框 rgba(148,163,184,0.1) */
+    border-radius: 16px;
+    padding: 32px;
+    transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-4px);          /* 悬停上浮 */
+    border-color: var(--primary);          /* 边框变为主色 */
+    box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15); /* 主色辉光 */
+}
+</code></pre>
+<p>卡片元素层次：<br />
+1. <strong>图标区域</strong>：48x48px，<code>--primary</code> 色的图标（SVG或Unicode符号）<br />
+2. <strong>标题</strong>：font-size 20px，font-weight 600，<code>--text</code> 色<br />
+3. <strong>描述</strong>：font-size 14px，<code>--text-secondary</code> 色，最多2行<br />
+4. <strong>操作按钮</strong>：文字链接"进入 →"，<code>--primary</code> 色</p>
+<h3 id="33">3.3 科学计算器页面</h3>
+<h4 id="_25">页面布局</h4>
+<pre><code>+----------------------------------------------------------+
+|  科学计算器                                               |
++----------------------------------------------------------+
+|                                                          |
+|  +----------------------------------------------------+  |
+|  | 表达式输入框...                                    [计算]|  |
+|  +----------------------------------------------------+  |
+|                                                          |
+|  +----------------------------------------------------+  |
+|  | 计算结果: 14                                       |  |
+|  | 详细步骤: 2 + 3 * 4 = 2 + 12 = 14                  |  |
+|  +----------------------------------------------------+  |
+|                                                          |
+|  [历史记录]                                               |
+|  ┌──────────────────────────────────────────────────┐   |
+|  │ 2+3*4 = 14                                       │   |
+|  │ sin(pi/2) = 1                                    │   |
+|  │ sqrt(256) = 16                                   │   |
+|  └──────────────────────────────────────────────────┘   |
+|                                                          |
++----------------------------------------------------------+
+|  [快捷函数按钮栏]                                         |
+|  [sin] [cos] [tan] [sqrt] [^] [log] [ln] [pi] [e] [(] [)] |
++----------------------------------------------------------+
+</code></pre>
+<h4 id="_26">输入框设计</h4>
+<pre><code class="language-css">.input-field {
+    width: 100%;
+    padding: 16px 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 18px;
+    font-family: 'Fira Code', monospace;  /* 等宽字体，代码感 */
+    transition: border-color 0.2s;
+}
+
+.input-field:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+</code></pre>
+<h4 id="_27">结果展示区</h4>
+<ul>
+<li>成功：大字号（32px）显示结果，<code>--primary</code> 色</li>
+<li>错误：红色文字显示错误信息</li>
+<li>步骤：小字号（14px），<code>--text-secondary</code> 色，等宽字体</li>
+</ul>
+<h3 id="34">3.4 进制转换页面</h3>
+<h4 id="_28">页面布局</h4>
+<pre><code>+----------------------------------------------------------+
+|  进制转换                                                 |
++----------------------------------------------------------+
+|                                                          |
+|  输入值: [________________________]                      |
+|                                                          |
+|  原进制: [▼ 2 (二进制)    ]  目标进制: [▼ 10 (十进制)  ]  |
+|                                                          |
+|           [  转  换  ]                                  |
+|                                                          |
+|  +----------------------------------------------------+  |
+|  | 转换结果: 1010₂ = 10₁₀                             |  |
+|  +----------------------------------------------------+  |
+|                                                          |
+|  [快速转换: 2→10] [10→2] [10→16] [16→10] [2→16] [任意]  |
+|                                                          |
++----------------------------------------------------------+
+</code></pre>
+<h3 id="35">3.5 排列组合页面</h3>
+<h4 id="_29">页面布局</h4>
+<p>采用<strong>标签页（Tab）切换</strong>组织7种计算类型：</p>
+<pre><code>+----------------------------------------------------------+
+|  排列组合                                                 |
++----------------------------------------------------------+
+|                                                          |
+|  [排列A(n,m)] [组合C(n,m)] [圆排列] [可重复排列]          |
+|  [可重复组合] [错位排列] [阶乘]                           |
+|  ──────────────────────────────────────────────────────  |
+|                                                          |
+|  (当前标签页对应的输入表单)                                |
+|                                                          |
+|  n: [________]    m: [________]    [ 计 算 ]             |
+|                                                          |
+|  结果: A(5,3) = 60                                      |
+|  公式: n!/(n-m)! = 5!/(5-3)! = 120/2 = 60              |
+|                                                          |
++----------------------------------------------------------+
+</code></pre>
+<h3 id="36">3.6 几何公式页面</h3>
+<h4 id="_30">页面布局</h4>
+<p>左侧为<strong>图形选择面板</strong>，右侧为<strong>参数输入和结果区域</strong>：</p>
+<pre><code>+----------------------------------------------------------+
+|  几何公式                                                 |
++----------------------------------------------------------+
+|                                                          |
+|  +------------------+  +-------------------------------+ |
+|  | [圆形]            |  | 图形: 圆形                     | |
+|  | [矩形]            |  |                                | |
+|  | [三角形]          |  | 参数:                          | |
+|  | [正方形]          |  | 半径 r: [________]            | |
+|  | [梯形]            |  |                                | |
+|  | [平行四边形]       |  | [ 计 算 ]                      | |
+|  | [菱形]            |  |                                | |
+|  | [扇形]            |  | 面积: πr² = 78.54             | |
+|  | [椭圆]            |  | 周长: 2πr = 31.42             | |
+|  | [正多边形]         |  |                                | |
+|  | ───────────────   |  | 公式: A = πr²                 | |
+|  | [立方体]          |  |       C = 2πr                 | |
+|  | [长方体]          |  +-------------------------------+ |
+|  | [球体]            |                                    |
+|  | [圆柱]            |                                    |
+|  | [圆锥]            |                                    |
+|  +------------------+                                    |
+|                                                          |
++----------------------------------------------------------+
+</code></pre>
+<p>图形选择面板样式：</p>
+<pre><code class="language-css">.shape-list {
+    width: 200px;
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.shape-item {
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-secondary);
+}
+
+.shape-item:hover {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--text);
+}
+
+.shape-item.active {
+    background: var(--primary);
+    color: white;
+}
+</code></pre>
+<h3 id="37">3.7 高级功能页面</h3>
+<h4 id="_31">页面布局</h4>
+<p>采用<strong>子标签页</strong>组织四个功能模块：</p>
+<pre><code>+----------------------------------------------------------+
+|  高级功能                                                 |
++----------------------------------------------------------+
+|                                                          |
+|  [矩阵运算] [单位转换] [数论函数] [统计分析] [方程求解]    |
+|  ──────────────────────────────────────────────────────  |
+|                                                          |
+|  (当前标签页对应的交互界面)                                |
+|                                                          |
++----------------------------------------------------------+
+</code></pre>
+<p><strong>矩阵运算界面</strong>：</p>
+<pre><code>操作: [▼ 矩阵乘法     ]
+
+矩阵 A:                    矩阵 B:
++---+---+                +---+---+---+
+| 1 | 2 |                | 5 | 6 | 7 |
++---+---+                +---+---+---+
+| 3 | 4 |                | 8 | 9 | 10|
++---+---+                +---+---+---+
+[添加行] [添加列]         [添加行] [添加列]
+
+[ 计 算 ]
+
+结果:
++----+----+----+
+| 21 | 24 | 27 |
++----+----+----+
+| 47 | 54 | 61 |
++----+----+----+
+</code></pre>
+<p>矩阵编辑器采用<strong>动态表格</strong>：用户可添加/删除行列，单元格内直接编辑数值。</p>
+<h3 id="38">3.8 服务器设置弹窗</h3>
+<h4 id="_32">弹窗布局</h4>
+<pre><code>+------------------------------------------+
+|  服务器设置                           [×] |
++------------------------------------------+
+|                                          |
+|  预设服务器:                              |
+|  [▼ 本地 (localhost:8080)            ]  |
+|                                          |
+|  或手动输入:                              |
+|  [http://________________________]       |
+|                                          |
+|  [  测试连接  ]  状态: ● 已连接           |
+|                                          |
+|       [  取 消  ]    [  保 存  ]         |
++------------------------------------------+
+</code></pre>
+<p>弹窗采用<strong>模态对话框（Modal Dialog）</strong>：<br />
+- 背景遮罩：<code>rgba(0,0,0,0.5)</code>，点击遮罩关闭弹窗<br />
+- 弹窗主体：宽度480px，居中显示，<code>border-radius: 16px</code><br />
+- 动画：fade-in + scale-up，时长200ms</p>
+<hr />
+<h2 id="ui">四、移动端 UI 设计</h2>
+<h3 id="41">4.1 断点设计</h3>
+<p>采用<strong>移动优先（Mobile First）</strong>的响应式策略：</p>
+<table>
+<thead>
+<tr>
+<th>断点</th>
+<th>范围</th>
+<th>布局策略</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>xs</td>
+<td>&lt; 480px</td>
+<td>单列，全宽，紧凑间距</td>
+</tr>
+<tr>
+<td>sm</td>
+<td>480px - 767px</td>
+<td>单列，适度间距</td>
+</tr>
+<tr>
+<td>md</td>
+<td>768px - 1023px</td>
+<td>双列网格</td>
+</tr>
+<tr>
+<td>lg</td>
+<td>1024px - 1279px</td>
+<td>三列网格</td>
+</tr>
+<tr>
+<td>xl</td>
+<td>≥ 1280px</td>
+<td>四列网格，最大宽度1200px</td>
+</tr>
+</tbody>
+</table>
+<h3 id="42">4.2 导航栏适配</h3>
+<h4 id="768px">移动端导航（&lt; 768px）</h4>
+<pre><code class="language-css">@media (max-width: 767px) {
+    .navbar {
+        height: 56px;                    /* 降低高度 */
+        padding: 0 16px;
+    }
+
+    .nav-links {
+        display: none;                   /* 隐藏水平导航 */
+    }
+
+    .nav-menu-btn {
+        display: block;                  /* 显示汉堡菜单按钮 */
+    }
+}
+</code></pre>
+<p>汉堡菜单展开后：</p>
+<pre><code>+----------------------------------+
+| [Logo]              [≡] [设置]   |
++----------------------------------+
+|  首页                             |
+|  科学计算器                        |
+|  进制转换                          |
+|  排列组合                          |
+|  几何公式                          |
+|  高级功能                          |
++----------------------------------+
+</code></pre>
+<ul>
+<li>全宽下拉面板，<code>--card-bg</code> 背景色</li>
+<li>每项高度48px，居中对齐</li>
+<li>点击后自动收起</li>
+</ul>
+<h3 id="43">4.3 页面布局适配</h3>
+<h4 id="_33">首页卡片网格</h4>
+<pre><code class="language-css">.feature-grid {
+    display: grid;
+    gap: 16px;
+    grid-template-columns: 1fr;        /* 移动端单列 */
+}
+
+@media (min-width: 768px) {
+    .feature-grid {
+        grid-template-columns: repeat(2, 1fr);  /* 平板双列 */
+        gap: 24px;
+    }
+}
+
+@media (min-width: 1024px) {
+    .feature-grid {
+        grid-template-columns: repeat(3, 1fr);  /* 桌面三列 */
+    }
+}
+</code></pre>
+<h4 id="_34">几何公式页面适配</h4>
+<p>PC端的左右分栏在移动端改为<strong>上下堆叠</strong>：</p>
+<pre><code>移动端 (&lt; 768px):
++----------------------------------+
+|  几何公式                         |
++----------------------------------+
+|  [圆形 ▼]  (下拉选择代替侧边栏)    |
++----------------------------------+
+|  参数:                            |
+|  半径 r: [________]              |
+|                                  |
+|  [ 计 算 ]                       |
+|                                  |
+|  面积: 78.54                     |
+|  周长: 31.42                     |
++----------------------------------+
+</code></pre>
+<h4 id="_35">矩阵运算页面适配</h4>
+<p>矩阵编辑器在移动端需要特殊处理：<br />
+- 矩阵表格改为<strong>水平可滚动</strong>（<code>overflow-x: auto</code>）<br />
+- 输入框最小宽度48px，确保触控友好<br />
+- 操作按钮（添加行/列）放大到44x44px（符合人机工程学最小触控目标）</p>
+<h3 id="44">4.4 触控优化</h3>
+<h4 id="_36">最小触控目标</h4>
+<p>所有可点击元素的最小尺寸为 <strong>44x44px</strong>（Apple Human Interface Guidelines 推荐值）：</p>
+<pre><code class="language-css">.btn {
+    min-height: 44px;
+    min-width: 44px;
+}
+
+@media (min-width: 768px) {
+    .btn {
+        min-height: 40px;   /* PC端可稍小 */
+    }
+}
+</code></pre>
+<h4 id="_37">输入框优化</h4>
+<pre><code class="language-css">@media (max-width: 767px) {
+    .input-field {
+        font-size: 16px;     /* 防止iOS自动放大 */
+        padding: 14px 16px;
+    }
+}
+</code></pre>
+<p><strong>重要</strong>：iOS Safari 在输入框 font-size &lt; 16px 时会自动放大页面，影响用户体验，因此移动端输入框必须设置 font-size ≥ 16px。</p>
+<h4 id="_38">手势支持</h4>
+<ul>
+<li>左滑/右滑：在标签页之间切换（如排列组合的7种类型）</li>
+<li>下拉刷新：历史记录区域下拉刷新（可选）</li>
+</ul>
+<h3 id="45">4.5 性能优化</h3>
+<h4 id="_39">移动端性能考量</h4>
+<ol>
+<li>
+<p><strong>CSS 动画硬件加速</strong>：使用 <code>transform</code> 和 <code>opacity</code> 而非 <code>left</code>/<code>top</code>/<code>margin</code>，触发 GPU 加速<br />
+<code>css
+   .page-transition {
+       transition: opacity 200ms ease, transform 200ms ease;
+       will-change: opacity, transform;
+   }</code></p>
+</li>
+<li>
+<p><strong>图片懒加载</strong>：如果页面包含复杂图表，使用 <code>loading="lazy"</code> 属性</p>
+</li>
+<li>
+<p><strong>减少重绘重排</strong>：避免频繁修改 <code>width</code>/<code>height</code>/<code>margin</code> 等触发 Layout 的属性</p>
+</li>
+<li>
+<p><strong>Debounced 输入</strong>：科学计算器的输入框使用防抖（Debounce），避免每次按键都发送请求<br />
+<code>javascript
+   let debounceTimer;
+   inputField.addEventListener('input', () =&gt; {
+       clearTimeout(debounceTimer);
+       debounceTimer = setTimeout(() =&gt; calculate(), 300);  // 300ms防抖
+   });</code></p>
+</li>
+</ol>
+<h3 id="46">4.6 暗色模式与浅色模式</h3>
+<p>虽然本设计以深色主题为默认，但可以通过 CSS 变量轻松支持浅色模式切换：</p>
+<pre><code class="language-css">:root {
+    /* 暗色主题（默认） */
+    --bg: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.6);
+    --text: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --border-color: rgba(148, 163, 184, 0.1);
+}
+
+[data-theme=&quot;light&quot;] {
+    --bg: #f8fafc;
+    --card-bg: rgba(255, 255, 255, 0.8);
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border-color: rgba(100, 116, 139, 0.15);
+}
+</code></pre>
+<hr />
+<h2 id="_40">五、设计原则总结</h2>
+<h3 id="51">5.1 核心设计原则</h3>
+<table>
+<thead>
+<tr>
+<th>原则</th>
+<th>说明</th>
+<th>体现位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>一致性</strong></td>
+<td>相同功能的交互方式在所有页面保持一致</td>
+<td>所有计算页面统一采用"输入→计算→结果"三段式布局</td>
+</tr>
+<tr>
+<td><strong>反馈性</strong></td>
+<td>每个操作都有明确的视觉反馈</td>
+<td>按钮悬停效果、加载动画、错误提示</td>
+</tr>
+<tr>
+<td><strong>容错性</strong></td>
+<td>允许用户犯错并提供清晰的恢复路径</td>
+<td>输入验证、错误提示、默认值</td>
+</tr>
+<tr>
+<td><strong>效率性</strong></td>
+<td>高频操作简单快捷</td>
+<td>快捷函数按钮、历史记录、预设服务器</td>
+</tr>
+<tr>
+<td><strong>美观性</strong></td>
+<td>视觉愉悦但不喧宾夺主</td>
+<td>深色主题、毛玻璃效果、渐变色</td>
+</tr>
+</tbody>
+</table>
+<h3 id="52-css">5.2 CSS 变量系统（完整）</h3>
+<pre><code class="language-css">:root {
+    /* 主色调 - 靛蓝/紫罗兰 */
+    --primary: #6366f1;           /* 主色 - 靛蓝 */
+    --primary-light: #818cf8;     /* 主色浅 - 悬停状态 */
+    --primary-dark: #4f46e5;      /* 主色深 - 激活状态 */
+    --primary-glow: rgba(99, 102, 241, 0.3);  /* 发光效果 */
+
+    /* 背景色 */
+    --bg: #0f172a;                /* 页面背景 - 深蓝灰 */
+    --bg-secondary: #1e293b;      /* 次级背景 */
+    --card-bg: rgba(30, 41, 59, 0.6);  /* 卡片背景 - 半透明 */
+
+    /* 文字色 */
+    --text: #f1f5f9;              /* 主文字 - 近白 */
+    --text-secondary: #94a3b8;    /* 次级文字 - 灰蓝 */
+    --text-muted: #64748b;        /* 弱化文字 */
+
+    /* 边框与分割 */
+    --border-color: rgba(148, 163, 184, 0.1);
+    --divider: rgba(148, 163, 184, 0.15);
+
+    /* 状态色 */
+    --success: #10b981;           /* 成功 - 翠绿 */
+    --error: #ef4444;             /* 错误 - 红色 */
+    --warning: #f59e0b;           /* 警告 - 琥珀 */
+
+    /* 字体 */
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'Fira Code', 'Consolas', monospace;
+
+    /* 间距 */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    /* 圆角 */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 24px;
+
+    /* 阴影 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    --shadow-glow: 0 0 20px var(--primary-glow);
+
+    /* 过渡 */
+    --transition-fast: 150ms ease;
+    --transition-base: 200ms ease;
+    --transition-slow: 300ms ease;
+}
+</code></pre>
+<h3 id="53">5.3 响应式断点速查</h3>
+<pre><code class="language-css">/* 移动端（默认） */
+/* 基础样式，适配 &lt; 768px */
+
+/* 平板 */
+@media (min-width: 768px) { /* md */ }
+
+/* 小型桌面 */
+@media (min-width: 1024px) { /* lg */ }
+
+/* 大型桌面 */
+@media (min-width: 1280px) { /* xl */ }
+</code></pre>
+<h3 id="54-accessibility">5.4 可访问性（Accessibility）考量</h3>
+<ol>
+<li><strong>色彩对比度</strong>：所有文字与背景的对比度符合 WCAG AA 标准（至少4.5:1）</li>
+<li><strong>键盘导航</strong>：所有交互元素支持 Tab 键聚焦，Enter/Space 键激活</li>
+<li><strong>ARIA 标签</strong>：关键元素添加 <code>aria-label</code>、<code>role</code> 等属性</li>
+<li><strong>减少动画</strong>：支持 <code>prefers-reduced-motion</code> 媒体查询</li>
+</ol>
+<pre><code class="language-css">@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+</code></pre>
+<hr />
+<p><em>本文档从专业前端设计师与后端接口设计师的双重身份出发，全面阐述了前端系统的技术架构、视觉设计和交互规范。术语依行业习惯保留英文原文，缩写首次出现时已备注完整英文与中文释义。</em></p>
+    </div>
+
+    <!-- 底部 -->
+    <footer style="text-align: center; padding: 40px 24px; color: var(--text-muted); font-size: 14px; border-top: 1px solid var(--border-color); margin-top: 60px;">
+        <p>作者、著作权人、版权所有人：江睿涛</p>
+    </footer>
+</body>
+</html>
